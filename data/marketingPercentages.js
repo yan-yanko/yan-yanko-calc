@@ -1,0 +1,20 @@
+export const marketingPercentages = [
+  { industry: "חברות תוכנה / SaaS / טכנולוגיה", percentage: 15, note: "אחוז גבוה בשל צורך בחינוך שוק ותחרות" },
+  { industry: "קמעונאות אונליין", percentage: 10, note: "דגש על פרפורמנס ורכישת לקוחות" },
+  { industry: "קמעונאות פיזית", percentage: 4, note: "שילוב אונליין ופיזי" },
+  { industry: "B2B שירותים", percentage: 8, note: "דגש על יצירת לידים וטיפוח מערכות יחסים" },
+  { industry: "מוצרי צריכה (FMCG)", percentage: 18, note: "השקעה גבוהה בבניית מותג ומודעות" },
+  { industry: "מזון ומשקאות", percentage: 10, note: "בניית מותג וגם קידום מכירות מקומי" },
+  { industry: "שירותים פיננסיים", percentage: 12, note: "השקעה באמון ובמוניטין" },
+  { industry: "בריאות ופארמה", percentage: 10, note: "השקעה בבניית אמון" },
+  { industry: "נדל\"ן", percentage: 4, note: "השקעה ממוקדת לפי פרויקטים" },
+  { industry: "חינוך", percentage: 5, note: "השקעה במודעות וגיוס תלמידים" },
+  { industry: "תיירות ואירוח", percentage: 8, note: "דגש על עונתיות ומבצעים" },
+  { industry: "רכב", percentage: 6, note: "בניית מותג וקידום דגמים חדשים" },
+  { industry: "ביגוד ואופנה", percentage: 12, note: "השקעה גבוהה בבניית מותג" },
+  { industry: "מוצרי יוקרה", percentage: 14, note: "השקעה גבוהה בבניית ערך מותג" },
+  { industry: "שירותים מקצועיים", percentage: 5, note: "דגש על מוניטין וקשרים" },
+  { industry: "סטארטאפ / מוצר חדש", percentage: 20, note: "השקעה גבוהה בחדירה לשוק" },
+  { industry: "עסק קטן מקומי", percentage: 7, note: "שיווק מקומי וממוקד" },
+  { industry: "אחר", percentage: 10, note: "בסיס כללי לתעשיות אחרות" }
+]; 
