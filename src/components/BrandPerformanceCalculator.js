@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { buildExplanation } from '../utils/buildExplanation';
+import { getBusinessProfile } from '../utils/getBusinessProfile';
+import BrandPerformanceResult from './BrandPerformanceResult';
 
 const BrandPerformanceCalculator = () => {
   // הנתונים מהקובץ
@@ -301,10 +304,28 @@ const BrandPerformanceCalculator = () => {
   const [perfBudget, setPerfBudget] = useState(40000);
   const [customAllocation, setCustomAllocation] = useState(false);
   const [customAllocationValue, setCustomAllocationValue] = useState(60);
+  const [recommendationExplanation, setRecommendationExplanation] = useState("");
+  const [businessProfile, setBusinessProfile] = useState(null);
+  const [errors, setErrors] = useState({
+    step1: '',
+    step2: ''
+  });
   
   // צבעים לתרשים
   const COLORS = ['#8884d8', '#82ca9d'];
   
+  // משקולות לכל ממד
+  const dimensionWeights = {
+    "שלב חיים של המותג": 1.5,
+    "גודל המותג": 1.4,
+    "קטגוריה": 1.3,
+    "חדשנות": 1.3,
+    "שלב חיים של הקטגוריה": 1.2,
+    "זמן קבלת החלטה": 1.2,
+    "ערוץ מכירה": 0.8,
+    "תמחור": 0.7
+  };
+
   // עדכון תקציב שיווק לפי מחזור המכירות והתעשייה
   useEffect(() => {
     if (!customBudgetPercent) {
@@ -408,6 +429,77 @@ const BrandPerformanceCalculator = () => {
     setCustomAllocationValue(Math.min(Math.max(value, 0), 100));
   };
   
+  // פונקציה לקביעת גבולות הקצאת המותג לפי פרופיל העסק
+  function getBrandAllocationLimits(selectedValues) {
+    let minBrand = 30;
+    let maxBrand = 80;
+
+    // בדיקת שלב חיים של המותג
+    const isNewBrand = selectedValues["שלב חיים של המותג"]?.context === "מותג חדש";
+    const isMatureBrand = selectedValues["שלב חיים של המותג"]?.context === "מותג בוגר";
+
+    // בדיקת זמן קבלת החלטה
+    const isLongDecisionTime = selectedValues["זמן קבלת החלטה"]?.context === "שלושה חודשים ומעלה";
+    const isShortDecisionTime = selectedValues["זמן קבלת החלטה"]?.context === "מיד עד כמה שעות";
+
+    // בדיקת גודל המותג
+    const isLargeBrand = selectedValues["גודל המותג"]?.context === "מותג גדול";
+    const isSmallBrand = selectedValues["גודל המותג"]?.context === "מותג קטן";
+
+    // מותג חדש? העלאת המינימום להשקעה במותג
+    if (isNewBrand) minBrand = Math.max(minBrand, 50);
+
+    // מותג בוגר? הורדת המינימום להשקעה במותג
+    if (isMatureBrand) minBrand = Math.min(minBrand, 40);
+
+    // זמן החלטה ארוך? הגדלת הטווח המותר
+    if (isLongDecisionTime) maxBrand = 90;
+
+    // זמן החלטה קצר? הקטנת הטווח המותר
+    if (isShortDecisionTime) maxBrand = 70;
+
+    // מותג גדול? העלאת המינימום להשקעה במותג
+    if (isLargeBrand) minBrand = Math.max(minBrand, 45);
+
+    // מותג קטן? הורדת המינימום להשקעה במותג
+    if (isSmallBrand) minBrand = Math.min(minBrand, 35);
+
+    return { minBrand, maxBrand };
+  }
+
+  // פונקציה לחישוב המלצה משוקללת
+  function calculateWeightedRecommendation(selectedValues, weights) {
+    let weightedBrandSum = 0;
+    let totalWeight = 0;
+
+    for (const dimension in selectedValues) {
+      const brandValue = selectedValues[dimension]?.brand;
+      const weight = weights[dimension] || 1; // משקל ברירת מחדל הוא 1 אם לא מוגדר
+
+      weightedBrandSum += brandValue * weight;
+      totalWeight += weight;
+    }
+
+    const avgBrand = Math.round(weightedBrandSum / totalWeight);
+    
+    // קביעת גבולות לפי פרופיל העסק
+    const { minBrand, maxBrand } = getBrandAllocationLimits(selectedValues);
+    
+    // הגבלת הערך לטווח המותר
+    const boundedBrand = Math.min(Math.max(avgBrand, minBrand), maxBrand);
+    
+    return {
+      brand: boundedBrand,
+      performance: 100 - boundedBrand,
+      wasAdjusted: avgBrand !== boundedBrand,
+      adjustmentReason: avgBrand < minBrand 
+        ? "ההקצאה למותג הותאמה כדי לעמוד בהמלצות המינימום להשקעה במותג לפי פרופיל העסק שלך."
+        : avgBrand > maxBrand 
+          ? "ההקצאה למותג הותאמה כדי להישאר בטווח ההשקעות הסביר."
+          : null
+    };
+  }
+  
   // חישוב ההמלצה הסופית בהתבסס על הבחירות
   useEffect(() => {
     if (customAllocation) {
@@ -425,21 +517,13 @@ const BrandPerformanceCalculator = () => {
     }
     
     // חישוב ממוצע משוקלל של כל הבחירות
-    let totalBrand = 0;
-    let count = 0;
+    const result = calculateWeightedRecommendation(selectedValues, dimensionWeights);
+    setFinalRecommendation(result);
     
-    for (const dimension in selectedValues) {
-      totalBrand += selectedValues[dimension].brand;
-      count++;
+    // הצגת הודעה אם היתה התאמה
+    if (result.wasAdjusted && result.adjustmentReason) {
+      alert(result.adjustmentReason);
     }
-    
-    const avgBrand = Math.round(totalBrand / count);
-    const avgPerf = 100 - avgBrand;
-    
-    setFinalRecommendation({
-      brand: avgBrand,
-      performance: avgPerf
-    });
   }, [selectedValues, customAllocation, customAllocationValue]);
   
   // חישוב תקציבים על פי האחוזים
@@ -478,25 +562,80 @@ const BrandPerformanceCalculator = () => {
     handleSelectionChange("זמן קבלת החלטה", value);
   };
   
-  // מעבר בין שלבים
+  // עדכון ההסבר בכל פעם שההמלצה משתנה
+  useEffect(() => {
+    if (Object.keys(selectedValues).length > 0) {
+      const explanation = buildExplanation(selectedValues);
+      setRecommendationExplanation(explanation);
+    }
+  }, [selectedValues]);
+  
+  // עדכון פרופיל העסק בכל פעם שהבחירות משתנות
+  useEffect(() => {
+    if (Object.keys(selectedValues).length > 0) {
+      const profile = getBusinessProfile(selectedValues);
+      setBusinessProfile(profile);
+    }
+  }, [selectedValues]);
+  
+  const validateStep1 = () => {
+    if (!industry) {
+      setErrors(prev => ({ ...prev, step1: 'יש לבחור תחום עסקי' }));
+      return false;
+    }
+    if (!annualRevenue) {
+      setErrors(prev => ({ ...prev, step1: 'יש להזין הכנסה שנתית' }));
+      return false;
+    }
+    setErrors(prev => ({ ...prev, step1: '' }));
+    return true;
+  };
+
+  const validateStep2 = () => {
+    const requiredDimensions = [
+      "שלב חיים של המותג",
+      "ערוץ מכירה",
+      "תמחור",
+      "זמן קבלת החלטה"
+    ];
+    
+    const missingDimensions = requiredDimensions.filter(dim => !selectedValues[dim]);
+    
+    if (missingDimensions.length > 0) {
+      setErrors(prev => ({ 
+        ...prev, 
+        step2: `יש לבחור: ${missingDimensions.join(', ')}` 
+      }));
+      return false;
+    }
+    
+    setErrors(prev => ({ ...prev, step2: '' }));
+    return true;
+  };
+
   const nextStep = () => {
-    setCurrentStep(currentStep + 1);
+    if (currentStep === 1 && !validateStep1()) {
+      return;
+    }
+    if (currentStep === 2 && !validateStep2()) {
+      return;
+    }
+    setCurrentStep(prev => prev + 1);
   };
-  
-  const prevStep = () => {
-    setCurrentStep(currentStep - 1);
+
+  const resetCalculator = () => {
+    setCurrentStep(1);
+    setIndustry('');
+    setAnnualRevenue(1000000);
+    setSelectedValues({});
+    setMarketingBudget(100000);
+    setFinalRecommendation({ brand: 50, performance: 50 });
+    setBusinessProfile(null);
+    setErrors({ step1: '', step2: '' });
   };
-  
-  // עדכון זמן קבלת החלטה
-  const decisionTimeOptions = [
-    { context: "מיד עד כמה שעות", brand: 50, performance: 50 },
-    { context: "כמה ימים עד כמה שבועות", brand: 55, performance: 45 },
-    { context: "חודש עד שלושה חודשים", brand: 65, performance: 35 },
-    { context: "שלושה חודשים ומעלה", brand: 75, performance: 25 }
-  ];
   
   return (
-    <div className="p-4 font-sans" dir="rtl">
+    <div className="container mx-auto p-4">
       <h2 className="text-xl font-bold mb-4">מחשבון הקצאת תקציב שיווק - מותג מול פרפורמנס</h2>
       
       <div className="mb-6 bg-blue-50 p-4 rounded-lg shadow">
@@ -525,11 +664,11 @@ const BrandPerformanceCalculator = () => {
           </div>
           
           <div className="mb-6">
-            <label className="block mb-2 font-semibold">תחום העסק:</label>
+            <label className="block mb-2 font-semibold">תחום העסק: <span className="text-red-500">*</span></label>
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="p-2 border border-gray-300 rounded w-full"
+              className={`p-2 border ${!industry ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
             >
               <option value="">-- בחר --</option>
               {marketingPercentages.map(item => (
@@ -538,6 +677,7 @@ const BrandPerformanceCalculator = () => {
                 </option>
               ))}
             </select>
+            {!industry && <p className="text-red-500 text-sm mt-1">חובה לבחור תחום עסקי</p>}
           </div>
           
           <div className="mb-6 bg-gray-50 p-4 rounded">
@@ -683,9 +823,13 @@ const BrandPerformanceCalculator = () => {
             </select>
           </div>
           
+          {errors.step2 && (
+            <p className="text-red-500 text-sm mt-4">{errors.step2}</p>
+          )}
+          
           <div className="flex justify-between mt-6">
             <button
-              onClick={prevStep}
+              onClick={() => setCurrentStep(1)}
               className="px-6 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
             >
               חזרה
@@ -702,120 +846,21 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 3: המלצת חלוקה */}
       {currentStep === 3 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">שלב 3: המלצת חלוקה בין מותג לפרפורמנס</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* תוצאות ההמלצה */}
-            <div>
-              <div className="h-64 mb-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={getPieData()}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {getPieData().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `${value}%`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div className="bg-gray-100 p-4 rounded-lg mb-4">
-                <h4 className="font-bold mb-2">תקציב שיווק שנתי: {marketingBudget.toLocaleString()} ₪</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="font-semibold text-purple-700">מותג:</p>
-                    <p className="text-xl">{finalRecommendation.brand}%</p>
-                    <p className="text-lg font-bold">{brandBudget.toLocaleString()} ₪</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-green-700">פרפורמנס:</p>
-                    <p className="text-xl">{finalRecommendation.performance}%</p>
-                    <p className="text-lg font-bold">{perfBudget.toLocaleString()} ₪</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* אפשרויות התאמה אישית */}
-            <div>
-              <div className="mb-6 border-b pb-4">
-                <div className="flex items-center mb-2">
-                  <input
-                    type="checkbox"
-                    id="customAllocation"
-                    checked={customAllocation}
-                    onChange={(e) => setCustomAllocation(e.target.checked)}
-                    className="ml-2"
-                  />
-                  <label htmlFor="customAllocation" className="font-semibold">הגדר חלוקה מותאמת אישית</label>
-                </div>
-                
-                {customAllocation && (
-                  <div className="mt-2">
-                    <label className="block mb-2">אחוז למותג: {customAllocationValue}%</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={customAllocationValue}
-                      onChange={handleCustomAllocationChange}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>0% מותג</span>
-                      <span>50/50</span>
-                      <span>100% מותג</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-4">
-                <h4 className="font-bold mb-2">פרמטרים שנבחרו:</h4>
-                {Object.keys(selections).length > 0 ? (
-                  <ul className="list-disc list-inside">
-                    {Object.keys(selections).map(dimension => (
-                      <li key={dimension}><b>{dimension}:</b> {selections[dimension]}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-600">לא נבחרו פרמטרים. התוצאה מבוססת על הממוצע הכללי.</p>
-                )}
-              </div>
-              
-              <div className="mt-6 text-sm text-gray-600 border-t pt-4">
-                <p className="font-bold mb-2">מקורות:</p>
-                <ul className="list-disc list-inside">
-                  <li><a href="https://cmosurvey.org/results/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CMO Survey Results</a></li>
-                  <li><a href="https://www.gartner.com/en/marketing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Gartner Marketing Research</a></li>
-                  <li><a href="https://www2.deloitte.com/us/en/pages/chief-marketing-officer/articles/cmo-survey.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Deloitte CMO Survey</a></li>
-                </ul>
-                <p className="mt-2">* ההמלצה מבוססת על מחקרים מתוך Effectiveness in Context ו-Media in Focus.</p>
-                <p>* התוצאה מחושבת כממוצע של ההמלצות עבור כל הפרמטרים שנבחרו.</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-between mt-6">
+        <>
+          <BrandPerformanceResult 
+            finalRecommendation={finalRecommendation}
+            explanation={recommendationExplanation}
+            profile={businessProfile}
+          />
+          <div className="flex justify-center mt-8">
             <button
-              onClick={prevStep}
-              className="px-6 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+              onClick={resetCalculator}
+              className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
             >
-              חזרה
+              התחל מהתחלה
             </button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
