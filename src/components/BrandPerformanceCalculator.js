@@ -277,12 +277,8 @@ const BrandPerformanceCalculator = () => {
         dimensions[item.dimension] = [];
       }
       // בדיקה שהאפשרות לא קיימת כבר במערך
-      if (!dimensions[item.dimension].some(option => option.context === item.context)) {
-        dimensions[item.dimension].push({
-          context: item.context,
-          brand: item.brand,
-          performance: item.performance
-        });
+      if (!dimensions[item.dimension].includes(item.context)) {
+        dimensions[item.dimension].push(item.context);
       }
     });
     return dimensions;
@@ -292,9 +288,7 @@ const BrandPerformanceCalculator = () => {
   const dimensionsList = Object.keys(dimensionsMap)
     .filter(dimension => 
       dimension !== "גודל המותג" && 
-      dimension !== "מודל רכישה" && 
-      dimension !== "קטגוריה" && 
-      dimension !== "אופי ההחלטה"
+      dimension !== "מודל רכישה"
     );
   
   // מצב פנימי של הקומפוננטה
@@ -397,33 +391,19 @@ const BrandPerformanceCalculator = () => {
       }
       
       // עדכן את הבחירה בקטגוריה
-      handleSelectionChange("קטגוריה", category);
+      handleDimensionChange("קטגוריה", category);
     }
   }, [industry]);
   
   // עדכון בחירות המשתמש לגבי ממדי העסק
-  const handleSelectionChange = (dimension, value) => {
-    const newSelections = { ...selections };
+  const handleDimensionChange = (dimension, value) => {
+    const newValues = { ...selectedValues, [dimension]: value };
+    setSelectedValues(newValues);
     
-    if (value === "") {
-      delete newSelections[dimension];
-    } else {
-      newSelections[dimension] = value;
-      
-      // מצא את ערך ה-brand וה-performance המתאימים
-      const selectedOption = dimensionsMap[dimension].find(option => option.context === value);
-      const newSelectedValues = { ...selectedValues };
-      
-      if (selectedOption) {
-        newSelectedValues[dimension] = {
-          brand: selectedOption.brand,
-          performance: selectedOption.performance
-        };
-        setSelectedValues(newSelectedValues);
-      }
+    const newRecommendation = calculateFinalRecommendation(newValues);
+    if (newRecommendation) {
+      setFinalRecommendation(newRecommendation);
     }
-    
-    setSelections(newSelections);
   };
   
   // עדכון מחזור מכירות שנתי
@@ -482,39 +462,17 @@ const BrandPerformanceCalculator = () => {
     return { minBrand, maxBrand };
   }
 
-  // פונקציה לחישוב המלצה משוקללת
-  function calculateWeightedRecommendation(selectedValues, weights) {
-    let weightedBrandSum = 0;
-    let totalWeight = 0;
+  // פונקציה לקבלת ערכי המותג והפרפורמנס לפי הבחירה
+  const getValuesForSelection = (dimension, value) => {
+    const recommendation = recommendationsData.find(
+      item => item.dimension === dimension && item.context === value
+    );
+    return recommendation ? {
+      brand: recommendation.brand,
+      performance: recommendation.performance
+    } : null;
+  };
 
-    for (const dimension in selectedValues) {
-      const brandValue = selectedValues[dimension]?.brand;
-      const weight = weights[dimension] || 1; // משקל ברירת מחדל הוא 1 אם לא מוגדר
-
-      weightedBrandSum += brandValue * weight;
-      totalWeight += weight;
-    }
-
-    const avgBrand = Math.round(weightedBrandSum / totalWeight);
-    
-    // קביעת גבולות לפי פרופיל העסק
-    const { minBrand, maxBrand } = getBrandAllocationLimits(selectedValues);
-    
-    // הגבלת הערך לטווח המותר
-    const boundedBrand = Math.min(Math.max(avgBrand, minBrand), maxBrand);
-    
-    return {
-      brand: boundedBrand,
-      performance: 100 - boundedBrand,
-      wasAdjusted: avgBrand !== boundedBrand,
-      adjustmentReason: avgBrand < minBrand 
-        ? "ההקצאה למותג הותאמה כדי לעמוד בהמלצות המינימום להשקעה במותג לפי פרופיל העסק שלך."
-        : avgBrand > maxBrand 
-          ? "ההקצאה למותג הותאמה כדי להישאר בטווח ההשקעות הסביר."
-          : null
-    };
-  }
-  
   // חישוב ההמלצה הסופית בהתבסס על הבחירות
   useEffect(() => {
     if (customAllocation) {
@@ -531,14 +489,33 @@ const BrandPerformanceCalculator = () => {
       return;
     }
     
+    let weightedBrandSum = 0;
+    let totalWeight = 0;
+
     // חישוב ממוצע משוקלל של כל הבחירות
-    const result = calculateWeightedRecommendation(selectedValues, dimensionWeights);
-    setFinalRecommendation(result);
+    Object.entries(selectedValues).forEach(([dimension, value]) => {
+      const values = getValuesForSelection(dimension, value);
+      if (values) {
+        const weight = dimensionWeights[dimension] || 1;
+        weightedBrandSum += values.brand * weight;
+        totalWeight += weight;
+      }
+    });
+
+    const avgBrand = Math.round(weightedBrandSum / totalWeight);
+    const { minBrand, maxBrand } = getBrandAllocationLimits(selectedValues);
+    const boundedBrand = Math.min(Math.max(avgBrand, minBrand), maxBrand);
     
-    // הצגת הודעה אם היתה התאמה
-    if (result.wasAdjusted && result.adjustmentReason) {
-      alert(result.adjustmentReason);
-    }
+    setFinalRecommendation({
+      brand: boundedBrand,
+      performance: 100 - boundedBrand,
+      wasAdjusted: avgBrand !== boundedBrand,
+      adjustmentReason: avgBrand < minBrand 
+        ? "ההקצאה למותג הותאמה כדי לעמוד בהמלצות המינימום להשקעה במותג לפי פרופיל העסק שלך."
+        : avgBrand > maxBrand 
+          ? "ההקצאה למותג הותאמה כדי להישאר בטווח ההשקעות הסביר."
+          : null
+    });
   }, [selectedValues, customAllocation, customAllocationValue]);
   
   // חישוב תקציבים על פי האחוזים
@@ -563,21 +540,21 @@ const BrandPerformanceCalculator = () => {
   const handleSalesChannelChange = (e) => {
     const selectedOption = salesChannels.find(option => option.context === e.target.value);
     if (selectedOption) {
-      handleSelectionChange("ערוץ מכירה", selectedOption.context);
+      handleDimensionChange("ערוץ מכירה", selectedOption.context);
     }
   };
   
   // עדכון בחירת תמחור
   const handlePricingChange = (e) => {
     const value = e.target.value;
-    handleSelectionChange("תמחור", value);
+    handleDimensionChange("תמחור", value);
   };
   
   // עדכון בחירת זמן קבלת החלטה
   const handleDecisionTimeChange = (e) => {
     const selectedOption = decisionTimeOptions.find(option => option.context === e.target.value);
     if (selectedOption) {
-      handleSelectionChange("זמן רכישה", selectedOption.context);
+      handleDimensionChange("זמן רכישה", selectedOption.context);
     }
   };
   
@@ -619,18 +596,17 @@ const BrandPerformanceCalculator = () => {
       "תמחור",
       "זמן רכישה"
     ];
-    
     const missingDimensions = requiredDimensions.filter(dim => !selectedValues[dim]);
     
     if (missingDimensions.length > 0) {
-      setErrors(prev => ({ 
-        ...prev, 
-        step2: `יש לבחור: ${missingDimensions.join(', ')}` 
+      setErrors(prev => ({
+        ...prev,
+        step2: `יש לבחור את כל השדות הנדרשים: ${missingDimensions.join(", ")}`
       }));
       return false;
     }
     
-    setErrors(prev => ({ ...prev, step2: '' }));
+    setErrors(prev => ({ ...prev, step2: "" }));
     return true;
   };
 
@@ -653,6 +629,33 @@ const BrandPerformanceCalculator = () => {
     setFinalRecommendation({ brand: 50, performance: 50 });
     setBusinessProfile(null);
     setErrors({ step1: '', step2: '' });
+  };
+  
+  const calculateFinalRecommendation = (values) => {
+    let totalBrandPercentage = 0;
+    let totalWeight = 0;
+
+    // חישוב האחוזים המשוקללים עבור כל ממד
+    Object.entries(values).forEach(([dimension, value]) => {
+      if (dimensionWeights[dimension] && recommendationsData.find(item => item.dimension === dimension && item.context === value)) {
+        const weight = dimensionWeights[dimension];
+        const brandPercentage = recommendationsData.find(item => item.dimension === dimension && item.context === value).brand;
+        totalBrandPercentage += brandPercentage * weight;
+        totalWeight += weight;
+      }
+    });
+
+    // אם אין מספיק נתונים, נחזיר null
+    if (totalWeight === 0) return null;
+
+    // חישוב האחוז הסופי
+    const brandPercentage = Math.round(totalBrandPercentage / totalWeight);
+    const performancePercentage = 100 - brandPercentage;
+
+    return {
+      brand: brandPercentage,
+      performance: performancePercentage
+    };
   };
   
   return (
@@ -776,126 +779,108 @@ const BrandPerformanceCalculator = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-bold mb-4">שלב 2: הגדרת פרמטרים עסקיים</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* שלב חיים של המותג */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">שלב חיים של המותג:</label>
-              <select
-                value={selections["שלב חיים של המותג"] || ""}
-                onChange={(e) => handleSelectionChange("שלב חיים של המותג", e.target.value)}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {dimensionsMap["שלב חיים של המותג"].map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* חדשנות */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">חדשנות:</label>
-              <select
-                value={selections["חדשנות"] || ""}
-                onChange={(e) => handleSelectionChange("חדשנות", e.target.value)}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {dimensionsMap["חדשנות"].map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* שלב חיים של הקטגוריה */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">שלב חיים של הקטגוריה:</label>
-              <select
-                value={selections["שלב חיים של הקטגוריה"] || ""}
-                onChange={(e) => handleSelectionChange("שלב חיים של הקטגוריה", e.target.value)}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {dimensionsMap["שלב חיים של הקטגוריה"].map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* ערוץ מכירה */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">ערוץ מכירה:</label>
-              <select
-                value={selections["ערוץ מכירה"] || ""}
-                onChange={handleSalesChannelChange}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {salesChannels.map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* תמחור */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">תמחור:</label>
-              <select
-                value={selections["תמחור"] || ""}
-                onChange={handlePricingChange}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {pricingOptions.map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* זמן רכישה */}
-            <div className="mb-4">
-              <label className="block mb-2 font-semibold">זמן רכישה:</label>
-              <select
-                value={selections["זמן רכישה"] || ""}
-                onChange={handleDecisionTimeChange}
-                className="p-2 border border-gray-300 rounded w-full"
-              >
-                <option value="">-- בחר --</option>
-                {decisionTimeOptions.map(option => (
-                  <option key={option.context} value={option.context}>
-                    {option.context}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">שלב חיים של המותג: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["שלב חיים של המותג"] || ""} 
+              onChange={(e) => handleDimensionChange("שלב חיים של המותג", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["שלב חיים של המותג"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר שלב חיים של המותג</option>
+              {dimensionsMap["שלב חיים של המותג"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
           </div>
-          
+
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">חדשנות: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["חדשנות"] || ""} 
+              onChange={(e) => handleDimensionChange("חדשנות", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["חדשנות"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר רמת חדשנות</option>
+              {dimensionsMap["חדשנות"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">שלב חיים של הקטגוריה: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["שלב חיים של הקטגוריה"] || ""} 
+              onChange={(e) => handleDimensionChange("שלב חיים של הקטגוריה", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["שלב חיים של הקטגוריה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר שלב חיים של הקטגוריה</option>
+              {dimensionsMap["שלב חיים של הקטגוריה"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">ערוץ מכירה: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["ערוץ מכירה"] || ""} 
+              onChange={(e) => handleDimensionChange("ערוץ מכירה", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["ערוץ מכירה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר ערוץ מכירה</option>
+              {dimensionsMap["ערוץ מכירה"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">תמחור: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["תמחור"] || ""} 
+              onChange={(e) => handleDimensionChange("תמחור", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["תמחור"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר תמחור</option>
+              {dimensionsMap["תמחור"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <label className="block mb-2 font-semibold">זמן קבלת החלטה: <span className="text-red-500">*</span></label>
+            <select 
+              value={selectedValues["זמן רכישה"] || ""} 
+              onChange={(e) => handleDimensionChange("זמן רכישה", e.target.value)}
+              className={`p-2 border ${errors.step2 && !selectedValues["זמן רכישה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
+            >
+              <option value="">בחר זמן קבלת החלטה</option>
+              {dimensionsMap["זמן רכישה"]?.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
           {errors.step2 && (
-            <p className="text-red-500 text-sm mt-4">{errors.step2}</p>
+            <div className="text-red-500 text-sm mb-4">
+              {errors.step2}
+            </div>
           )}
-          
+
           <div className="flex justify-between mt-6">
             <button
               onClick={() => setCurrentStep(1)}
-              className="px-6 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
             >
-              חזרה
+              חזור
             </button>
             <button
               onClick={nextStep}
               className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              המשך לשלב הבא
+              המשך
             </button>
           </div>
         </div>
@@ -903,7 +888,8 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 3: המלצת חלוקה */}
       {currentStep === 3 && (
-        <>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-bold mb-4">המלצת חלוקת תקציב</h3>
           <BrandPerformanceResult 
             finalRecommendation={finalRecommendation}
             explanation={recommendationExplanation}
@@ -917,7 +903,7 @@ const BrandPerformanceCalculator = () => {
               התחל מהתחלה
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
