@@ -107,6 +107,13 @@ const BrandPerformanceCalculator = () => {
     },
     {
       dimension: "חדשנות",
+      context: "מוצר/שירות חדש לחלוטין",
+      brand: 75,
+      performance: 25,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "חדשנות",
       context: "השקה של וריאנט חדש",
       brand: 60,
       performance: 40,
@@ -162,28 +169,28 @@ const BrandPerformanceCalculator = () => {
       source: "Effectiveness in Context"
     },
     {
-      dimension: "זמן קבלת החלטה",
-      context: "מיד עד כמה שעות",
+      dimension: "זמן רכישה",
+      context: "מיידי עד כמה שעות",
       brand: 50,
       performance: 50,
       source: "Effectiveness in Context"
     },
     {
-      dimension: "זמן קבלת החלטה",
+      dimension: "זמן רכישה",
       context: "כמה ימים עד כמה שבועות",
       brand: 55,
       performance: 45,
       source: "Effectiveness in Context"
     },
     {
-      dimension: "זמן קבלת החלטה",
+      dimension: "זמן רכישה",
       context: "חודש עד שלושה חודשים",
       brand: 65,
       performance: 35,
       source: "Effectiveness in Context"
     },
     {
-      dimension: "זמן קבלת החלטה",
+      dimension: "זמן רכישה",
       context: "שלושה חודשים ומעלה",
       brand: 75,
       performance: 25,
@@ -205,21 +212,21 @@ const BrandPerformanceCalculator = () => {
     },
     {
       dimension: "תמחור",
-      context: "Value (זול)",
+      context: "נמוך מהקטגוריה",
       brand: 55,
       performance: 45,
       source: "Effectiveness in Context"
     },
     {
       dimension: "תמחור",
-      context: "Mainstream (מיינסטרים)",
+      context: "ממוצע לקטגוריה",
       brand: 60,
       performance: 40,
       source: "Effectiveness in Context"
     },
     {
       dimension: "תמחור",
-      context: "Premium (פרימיום)",
+      context: "גבוה מהקטגוריה",
       brand: 70,
       performance: 30,
       source: "Effectiveness in Context"
@@ -321,7 +328,7 @@ const BrandPerformanceCalculator = () => {
     "קטגוריה": 1.3,
     "חדשנות": 1.3,
     "שלב חיים של הקטגוריה": 1.2,
-    "זמן קבלת החלטה": 1.2,
+    "זמן רכישה": 1.2,
     "ערוץ מכירה": 0.8,
     "תמחור": 0.7
   };
@@ -345,6 +352,14 @@ const BrandPerformanceCalculator = () => {
       setMarketingBudget(calculatedBudget);
     }
   }, [customBudgetValue, annualRevenue, customBudgetPercent]);
+  
+  // עדכון זמן קבלת החלטה
+  const decisionTimeOptions = [
+    { context: "מיידי עד כמה שעות", brand: 50, performance: 50 },
+    { context: "כמה ימים עד כמה שבועות", brand: 55, performance: 45 },
+    { context: "חודש עד שלושה חודשים", brand: 65, performance: 35 },
+    { context: "שלושה חודשים ומעלה", brand: 75, performance: 25 }
+  ];
   
   // עדכון ערוץ מכירה
   const salesChannels = [
@@ -439,8 +454,8 @@ const BrandPerformanceCalculator = () => {
     const isMatureBrand = selectedValues["שלב חיים של המותג"]?.context === "מותג בוגר";
 
     // בדיקת זמן קבלת החלטה
-    const isLongDecisionTime = selectedValues["זמן קבלת החלטה"]?.context === "שלושה חודשים ומעלה";
-    const isShortDecisionTime = selectedValues["זמן קבלת החלטה"]?.context === "מיד עד כמה שעות";
+    const isLongDecisionTime = selectedValues["זמן רכישה"]?.context === "שלושה חודשים ומעלה";
+    const isShortDecisionTime = selectedValues["זמן רכישה"]?.context === "מיידי עד כמה שעות";
 
     // בדיקת גודל המותג
     const isLargeBrand = selectedValues["גודל המותג"]?.context === "מותג גדול";
@@ -546,8 +561,10 @@ const BrandPerformanceCalculator = () => {
   
   // עדכון בחירת ערוץ מכירה
   const handleSalesChannelChange = (e) => {
-    const value = e.target.value;
-    handleSelectionChange("ערוץ מכירה", value);
+    const selectedOption = salesChannels.find(option => option.context === e.target.value);
+    if (selectedOption) {
+      handleSelectionChange("ערוץ מכירה", selectedOption.context);
+    }
   };
   
   // עדכון בחירת תמחור
@@ -558,8 +575,10 @@ const BrandPerformanceCalculator = () => {
   
   // עדכון בחירת זמן קבלת החלטה
   const handleDecisionTimeChange = (e) => {
-    const value = e.target.value;
-    handleSelectionChange("זמן קבלת החלטה", value);
+    const selectedOption = decisionTimeOptions.find(option => option.context === e.target.value);
+    if (selectedOption) {
+      handleSelectionChange("זמן רכישה", selectedOption.context);
+    }
   };
   
   // עדכון ההסבר בכל פעם שההמלצה משתנה
@@ -594,9 +613,11 @@ const BrandPerformanceCalculator = () => {
   const validateStep2 = () => {
     const requiredDimensions = [
       "שלב חיים של המותג",
+      "חדשנות",
+      "שלב חיים של הקטגוריה",
       "ערוץ מכירה",
       "תמחור",
-      "זמן קבלת החלטה"
+      "זמן רכישה"
     ];
     
     const missingDimensions = requiredDimensions.filter(dim => !selectedValues[dim]);
@@ -756,71 +777,107 @@ const BrandPerformanceCalculator = () => {
           <h3 className="text-lg font-bold mb-4">שלב 2: הגדרת פרמטרים עסקיים</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dimensionsList.map(dimension => (
-              <div key={dimension} className="mb-4">
-                <label className="block mb-2 font-semibold">{dimension}:</label>
-                <select
-                  value={selections[dimension] || ""}
-                  onChange={(e) => handleSelectionChange(dimension, e.target.value)}
-                  className="p-2 border border-gray-300 rounded w-full"
-                >
-                  <option value="">-- בחר --</option>
-                  {dimensionsMap[dimension].map(option => (
-                    <option key={option.context} value={option.context}>
-                      {option.context}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mb-4">
-            <label className="block mb-2 font-semibold">ערוץ מכירה:</label>
-            <select
-              value={selections["ערוץ מכירה"] || ""}
-              onChange={handleSalesChannelChange}
-              className="p-2 border border-gray-300 rounded w-full"
-            >
-              <option value="">-- בחר --</option>
-              {salesChannels.map(option => (
-                <option key={option.context} value={option.context}>
-                  {option.context}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block mb-2 font-semibold">תמחור:</label>
-            <select
-              value={selections["תמחור"] || ""}
-              onChange={handlePricingChange}
-              className="p-2 border border-gray-300 rounded w-full"
-            >
-              <option value="">-- בחר --</option>
-              {pricingOptions.map(option => (
-                <option key={option.context} value={option.context}>
-                  {option.context}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="mb-4">
-            <label className="block mb-2 font-semibold">כמה זמן לוקח ללקוח בממוצע לקבל החלטה?</label>
-            <select
-              value={selections["זמן קבלת החלטה"] || ""}
-              onChange={handleDecisionTimeChange}
-              className="p-2 border border-gray-300 rounded w-full"
-            >
-              <option value="">-- בחר --</option>
-              {decisionTimeOptions.map(option => (
-                <option key={option.context} value={option.context}>
-                  {option.context}
-                </option>
-              ))}
-            </select>
+            {/* שלב חיים של המותג */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">שלב חיים של המותג:</label>
+              <select
+                value={selections["שלב חיים של המותג"] || ""}
+                onChange={(e) => handleSelectionChange("שלב חיים של המותג", e.target.value)}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {dimensionsMap["שלב חיים של המותג"].map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* חדשנות */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">חדשנות:</label>
+              <select
+                value={selections["חדשנות"] || ""}
+                onChange={(e) => handleSelectionChange("חדשנות", e.target.value)}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {dimensionsMap["חדשנות"].map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* שלב חיים של הקטגוריה */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">שלב חיים של הקטגוריה:</label>
+              <select
+                value={selections["שלב חיים של הקטגוריה"] || ""}
+                onChange={(e) => handleSelectionChange("שלב חיים של הקטגוריה", e.target.value)}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {dimensionsMap["שלב חיים של הקטגוריה"].map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* ערוץ מכירה */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">ערוץ מכירה:</label>
+              <select
+                value={selections["ערוץ מכירה"] || ""}
+                onChange={handleSalesChannelChange}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {salesChannels.map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* תמחור */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">תמחור:</label>
+              <select
+                value={selections["תמחור"] || ""}
+                onChange={handlePricingChange}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {pricingOptions.map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* זמן רכישה */}
+            <div className="mb-4">
+              <label className="block mb-2 font-semibold">זמן רכישה:</label>
+              <select
+                value={selections["זמן רכישה"] || ""}
+                onChange={handleDecisionTimeChange}
+                className="p-2 border border-gray-300 rounded w-full"
+              >
+                <option value="">-- בחר --</option>
+                {decisionTimeOptions.map(option => (
+                  <option key={option.context} value={option.context}>
+                    {option.context}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           
           {errors.step2 && (
