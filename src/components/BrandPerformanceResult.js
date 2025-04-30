@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Info } from "lucide-react";
+import { InfoIcon } from "lucide-react";
+import { buildExplanation } from "../utils/buildExplanation";
 
 const COLORS = ["#3B82F6", "#FACC15"];
 
-export default function BrandPerformanceResult({ finalRecommendation, explanation, profile }) {
+export default function BrandPerformanceResult({ finalRecommendation, selections, profile }) {
   const data = [
     { name: "מותג", value: finalRecommendation.brand },
     { name: "פרפורמנס", value: finalRecommendation.performance },
   ];
+
+  // בניית ההסבר מתוך selections
+  const explanation = buildExplanation(selections);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
@@ -38,7 +42,7 @@ export default function BrandPerformanceResult({ finalRecommendation, explanatio
           <div className="w-full md:w-1/2 space-y-4">
             <div className="text-slate-700">
               <h3 className="font-medium text-lg mb-2 flex items-center gap-2">
-                <Info className="w-5 h-5 text-blue-500" /> למה ההמלצה הזו?
+                <InfoIcon className="w-5 h-5 text-blue-500" /> למה ההמלצה הזו?
               </h3>
               <p className="text-sm leading-relaxed">{explanation}</p>
             </div>

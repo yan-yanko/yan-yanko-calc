@@ -2,9 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { buildExplanation } from '../utils/buildExplanation';
 import { getBusinessProfile } from '../utils/getBusinessProfile';
+import { calculateFinalRecommendation } from '../utils/calculateRecommendation';
 import BrandPerformanceResult from './BrandPerformanceResult';
 
 const BrandPerformanceCalculator = () => {
+  // מצב פנימי של הקומפוננטה - כל useState בראש!
+  const [currentStep, setCurrentStep] = useState(1);
+  const [annualRevenue, setAnnualRevenue] = useState(1000000);
+  const [industry, setIndustry] = useState("");
+  const [marketingBudget, setMarketingBudget] = useState(100000);
+  const [customBudgetPercent, setCustomBudgetPercent] = useState(false);
+  const [customBudgetValue, setCustomBudgetValue] = useState(10);
+  const [selections, setSelections] = useState({});
+  const [selectedValues, setSelectedValues] = useState({});
+  const [finalRecommendation, setFinalRecommendation] = useState({ brand: 60, performance: 40 });
+  const [brandBudget, setBrandBudget] = useState(60000);
+  const [perfBudget, setPerfBudget] = useState(40000);
+  const [customAllocation, setCustomAllocation] = useState(false);
+  const [customAllocationValue, setCustomAllocationValue] = useState(60);
+  const [recommendationExplanation, setRecommendationExplanation] = useState("");
+  const [businessProfile, setBusinessProfile] = useState(null);
+  const [errors, setErrors] = useState({
+    step1: '',
+    step2: ''
+  });
+  
   // הנתונים מהקובץ
   const recommendationsData = [
     {
@@ -34,76 +56,6 @@ const BrandPerformanceCalculator = () => {
       brand: 72,
       performance: 28,
       source: "Effectiveness in Context"
-    },
-    {
-      dimension: "גודל המותג",
-      context: "מותג מוביל",
-      brand: 72,
-      performance: 28,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "גודל המותג",
-      context: "מותג גדול",
-      brand: 65,
-      performance: 35,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "גודל המותג",
-      context: "מותג בינוני",
-      brand: 60,
-      performance: 40,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "גודל המותג",
-      context: "מותג קטן",
-      brand: 55,
-      performance: 45,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "מוצרי צריכה (FMCG)",
-      brand: 65,
-      performance: 35,
-      source: "Media in Focus"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "שירותים פיננסיים",
-      brand: 80,
-      performance: 20,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "SaaS / טכנולוגיה",
-      brand: 55,
-      performance: 45,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "נסיעות / שירותים מתכלים",
-      brand: 40,
-      performance: 60,
-      source: "Effectiveness in Context"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "קמעונאות",
-      brand: 60,
-      performance: 40,
-      source: "Media in Focus"
-    },
-    {
-      dimension: "קטגוריה",
-      context: "מזון ומשקאות",
-      brand: 55,
-      performance: 45,
-      source: "Media in Focus"
     },
     {
       dimension: "חדשנות",
@@ -205,7 +157,14 @@ const BrandPerformanceCalculator = () => {
     },
     {
       dimension: "ערוץ מכירה",
-      context: "גם אונליין וגם פיזי",
+      context: "אופליין בלבד",
+      brand: 60,
+      performance: 40,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "ערוץ מכירה",
+      context: "גם אונליין וגם אופליין",
       brand: 60,
       performance: 40,
       source: "Effectiveness in Context"
@@ -232,17 +191,45 @@ const BrandPerformanceCalculator = () => {
       source: "Effectiveness in Context"
     },
     {
-      dimension: "אופי ההחלטה",
-      context: "רגשית",
+      dimension: "קטגוריה",
+      context: "מוצרי צריכה (FMCG)",
+      brand: 70,
+      performance: 30,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "קטגוריה",
+      context: "שירותים פיננסיים",
       brand: 65,
       performance: 35,
       source: "Effectiveness in Context"
     },
     {
-      dimension: "אופי ההחלטה",
-      context: "רציונלית",
+      dimension: "קטגוריה",
+      context: "SaaS / טכנולוגיה",
+      brand: 55,
+      performance: 45,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "קטגוריה",
+      context: "נסיעות / שירותים מתכלים",
       brand: 50,
       performance: 50,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "קטגוריה",
+      context: "קמעונאות",
+      brand: 60,
+      performance: 40,
+      source: "Effectiveness in Context"
+    },
+    {
+      dimension: "קטגוריה",
+      context: "מזון ומשקאות",
+      brand: 65,
+      performance: 35,
       source: "Effectiveness in Context"
     }
   ];
@@ -269,57 +256,9 @@ const BrandPerformanceCalculator = () => {
     { industry: "אחר", percentage: 10, note: "בסיס כללי לתעשיות אחרות" }
   ];
 
-  // ארגון הנתונים לפי ממדים
-  const getDimensionsAndOptions = () => {
-    const dimensions = {};
-    recommendationsData.forEach(item => {
-      if (!dimensions[item.dimension]) {
-        dimensions[item.dimension] = [];
-      }
-      // בדיקה שהאפשרות לא קיימת כבר במערך
-      if (!dimensions[item.dimension].includes(item.context)) {
-        dimensions[item.dimension].push(item.context);
-      }
-    });
-    return dimensions;
-  };
-
-  const dimensionsMap = getDimensionsAndOptions();
-  const dimensionsList = Object.keys(dimensionsMap)
-    .filter(dimension => 
-      dimension !== "גודל המותג" && 
-      dimension !== "מודל רכישה"
-    );
-  
-  // מצב פנימי של הקומפוננטה
-  const [currentStep, setCurrentStep] = useState(1);
-  const [annualRevenue, setAnnualRevenue] = useState(1000000);
-  const [industry, setIndustry] = useState("");
-  const [marketingBudget, setMarketingBudget] = useState(100000);
-  const [customBudgetPercent, setCustomBudgetPercent] = useState(false);
-  const [customBudgetValue, setCustomBudgetValue] = useState(10);
-  const [selections, setSelections] = useState({});
-  const [selectedValues, setSelectedValues] = useState({});
-  const [finalRecommendation, setFinalRecommendation] = useState({ brand: 60, performance: 40 });
-  const [brandBudget, setBrandBudget] = useState(60000);
-  const [perfBudget, setPerfBudget] = useState(40000);
-  const [customAllocation, setCustomAllocation] = useState(false);
-  const [customAllocationValue, setCustomAllocationValue] = useState(60);
-  const [recommendationExplanation, setRecommendationExplanation] = useState("");
-  const [businessProfile, setBusinessProfile] = useState(null);
-  const [errors, setErrors] = useState({
-    step1: '',
-    step2: ''
-  });
-  
-  // צבעים לתרשים
-  const COLORS = ['#8884d8', '#82ca9d'];
-  
   // משקולות לכל ממד
   const dimensionWeights = {
     "שלב חיים של המותג": 1.5,
-    "גודל המותג": 1.4,
-    "קטגוריה": 1.3,
     "חדשנות": 1.3,
     "שלב חיים של הקטגוריה": 1.2,
     "זמן רכישה": 1.2,
@@ -327,6 +266,68 @@ const BrandPerformanceCalculator = () => {
     "תמחור": 0.7
   };
 
+  // הוספת אובייקט הממפה בין תצוגה לערך
+  const categoryDisplayMap = {
+    "מוצרי צריכה (FMCG)": "מוצרי צריכה",
+    "שירותים": "שירותים",
+    "SaaS / טכנולוגיה": "SaaS וטכנולוגיה",
+    "פיננסים": "פיננסים",
+    "קמעונאות (Retail)": "קמעונאות",
+    "שירותים בני חלוף (Travel)": "שירותים בני חלוף"
+  };
+
+  // עדכון תעשייה
+  useEffect(() => {
+    if (industry) {
+      // מצא את הקטגוריה המתאימה לתעשייה
+      let category = "";
+      if (industry.includes("מוצרי צריכה") || industry.includes("FMCG")) {
+        category = "מוצרי צריכה (FMCG)";
+      } else if (industry.includes("שירותים פיננסיים")) {
+        category = "פיננסים";
+      } else if (industry.includes("SaaS") || industry.includes("טכנולוגיה")) {
+        category = "SaaS / טכנולוגיה";
+      } else if (industry.includes("נסיעות") || industry.includes("שירותים מתכלים")) {
+        category = "שירותים בני חלוף (Travel)";
+      } else if (industry.includes("קמעונאות")) {
+        category = "קמעונאות (Retail)";
+      } else if (industry.includes("מזון") || industry.includes("משקאות")) {
+        category = "מוצרי צריכה (FMCG)";
+      } else {
+        category = "שירותים"; // ברירת מחדל
+      }
+      
+      // עדכן את הבחירה בקטגוריה
+      handleDimensionChange("קטגוריה", category);
+      setSelections(prev => ({ ...prev, "קטגוריה": category }));
+    }
+  }, [industry]);
+
+  // ארגון הנתונים לפי ממדים
+  const getDimensionsAndOptions = () => {
+    const dimensions = {};
+    recommendationsData.forEach(item => {
+      // רק אם הממד הוא אחד מששת הממדים שאנחנו רוצים להציג בשלב 2
+      if (["שלב חיים של המותג", "חדשנות", "שלב חיים של הקטגוריה", 
+           "ערוץ מכירה", "תמחור", "זמן רכישה"].includes(item.dimension)) {
+        if (!dimensions[item.dimension]) {
+          dimensions[item.dimension] = [];
+        }
+        // בדיקה שהאפשרות לא קיימת כבר במערך
+        if (!dimensions[item.dimension].includes(item.context)) {
+          dimensions[item.dimension].push(item.context);
+        }
+      }
+    });
+    return dimensions;
+  };
+
+  const dimensionsMap = getDimensionsAndOptions();
+  const dimensionsList = Object.keys(dimensionsMap);
+  
+  // צבעים לתרשים
+  const COLORS = ['#8884d8', '#82ca9d'];
+  
   // עדכון תקציב שיווק לפי מחזור המכירות והתעשייה
   useEffect(() => {
     if (!customBudgetPercent) {
@@ -371,29 +372,15 @@ const BrandPerformanceCalculator = () => {
   
   // עדכון תעשייה
   useEffect(() => {
-    if (industry) {
-      // מצא את הקטגוריה המתאימה לתעשייה
-      let category = "";
-      if (industry.includes("מוצרי צריכה") || industry.includes("FMCG")) {
-        category = "מוצרי צריכה (FMCG)";
-      } else if (industry.includes("שירותים פיננסיים")) {
-        category = "שירותים פיננסיים";
-      } else if (industry.includes("SaaS") || industry.includes("טכנולוגיה")) {
-        category = "SaaS / טכנולוגיה";
-      } else if (industry.includes("נסיעות") || industry.includes("שירותים מתכלים")) {
-        category = "נסיעות / שירותים מתכלים";
-      } else if (industry.includes("קמעונאות")) {
-        category = "קמעונאות";
-      } else if (industry.includes("מזון") || industry.includes("משקאות")) {
-        category = "מזון ומשקאות";
-      } else {
-        category = "קמעונאות"; // ברירת מחדל
+    if (!customBudgetPercent) {
+      const selectedIndustryInfo = marketingPercentages.find(item => item.industry === industry);
+      if (selectedIndustryInfo) {
+        const recommendedBudget = Math.round(annualRevenue * (selectedIndustryInfo.percentage / 100));
+        setMarketingBudget(recommendedBudget);
+        setCustomBudgetValue(selectedIndustryInfo.percentage);
       }
-      
-      // עדכן את הבחירה בקטגוריה
-      handleDimensionChange("קטגוריה", category);
     }
-  }, [industry]);
+  }, [industry, annualRevenue, customBudgetPercent]);
   
   // עדכון בחירות המשתמש לגבי ממדי העסק
   const handleDimensionChange = (dimension, value) => {
@@ -462,63 +449,7 @@ const BrandPerformanceCalculator = () => {
     return { minBrand, maxBrand };
   }
 
-  // פונקציה לקבלת ערכי המותג והפרפורמנס לפי הבחירה
-  const getValuesForSelection = (dimension, value) => {
-    const recommendation = recommendationsData.find(
-      item => item.dimension === dimension && item.context === value
-    );
-    return recommendation ? {
-      brand: recommendation.brand,
-      performance: recommendation.performance
-    } : null;
-  };
-
-  // חישוב ההמלצה הסופית בהתבסס על הבחירות
-  useEffect(() => {
-    if (customAllocation) {
-      setFinalRecommendation({
-        brand: customAllocationValue,
-        performance: 100 - customAllocationValue
-      });
-      return;
-    }
-    
-    // אם אין בחירות, השתמש בממוצע הכללי
-    if (Object.keys(selectedValues).length === 0) {
-      setFinalRecommendation({ brand: 60, performance: 40 });
-      return;
-    }
-    
-    let weightedBrandSum = 0;
-    let totalWeight = 0;
-
-    // חישוב ממוצע משוקלל של כל הבחירות
-    Object.entries(selectedValues).forEach(([dimension, value]) => {
-      const values = getValuesForSelection(dimension, value);
-      if (values) {
-        const weight = dimensionWeights[dimension] || 1;
-        weightedBrandSum += values.brand * weight;
-        totalWeight += weight;
-      }
-    });
-
-    const avgBrand = Math.round(weightedBrandSum / totalWeight);
-    const { minBrand, maxBrand } = getBrandAllocationLimits(selectedValues);
-    const boundedBrand = Math.min(Math.max(avgBrand, minBrand), maxBrand);
-    
-    setFinalRecommendation({
-      brand: boundedBrand,
-      performance: 100 - boundedBrand,
-      wasAdjusted: avgBrand !== boundedBrand,
-      adjustmentReason: avgBrand < minBrand 
-        ? "ההקצאה למותג הותאמה כדי לעמוד בהמלצות המינימום להשקעה במותג לפי פרופיל העסק שלך."
-        : avgBrand > maxBrand 
-          ? "ההקצאה למותג הותאמה כדי להישאר בטווח ההשקעות הסביר."
-          : null
-    });
-  }, [selectedValues, customAllocation, customAllocationValue]);
-  
-  // חישוב תקציבים על פי האחוזים
+  // עדכון תקציבים על פי האחוזים
   useEffect(() => {
     const brandAmount = Math.round((finalRecommendation.brand / 100) * marketingBudget);
     setBrandBudget(brandAmount);
@@ -536,7 +467,7 @@ const BrandPerformanceCalculator = () => {
     return selected ? selected : { percentage: 10, note: "ממוצע כללי למגוון תעשיות" };
   };
   
-  // עדכון בחירת ערוץ מכירה
+  // עדכון עדכון בחירת ערוץ מכירה
   const handleSalesChannelChange = (e) => {
     const selectedOption = salesChannels.find(option => option.context === e.target.value);
     if (selectedOption) {
@@ -631,40 +562,31 @@ const BrandPerformanceCalculator = () => {
     setErrors({ step1: '', step2: '' });
   };
   
-  const calculateFinalRecommendation = (values) => {
-    let totalBrandPercentage = 0;
-    let totalWeight = 0;
-
-    // חישוב האחוזים המשוקללים עבור כל ממד
-    Object.entries(values).forEach(([dimension, value]) => {
-      if (dimensionWeights[dimension] && recommendationsData.find(item => item.dimension === dimension && item.context === value)) {
-        const weight = dimensionWeights[dimension];
-        const brandPercentage = recommendationsData.find(item => item.dimension === dimension && item.context === value).brand;
-        totalBrandPercentage += brandPercentage * weight;
-        totalWeight += weight;
-      }
-    });
-
-    // אם אין מספיק נתונים, נחזיר null
-    if (totalWeight === 0) return null;
-
-    // חישוב האחוז הסופי
-    const brandPercentage = Math.round(totalBrandPercentage / totalWeight);
-    const performancePercentage = 100 - brandPercentage;
-
-    return {
-      brand: brandPercentage,
-      performance: performancePercentage
-    };
+  // עדכון פונקציית handleSelectionChange
+  const handleSelectionChange = (dimension, value) => {
+    console.log("selections:", selections);
+    // אם זה קטגוריה, נשמור את הערך המדויק
+    if (dimension === "קטגוריה") {
+      const exactValue = Object.keys(categoryDisplayMap).find(key => key === value);
+      setSelections(prev => ({
+        ...prev,
+        [dimension]: exactValue || value
+      }));
+    } else {
+      setSelections(prev => ({
+        ...prev,
+        [dimension]: value
+      }));
+    }
   };
-  
+
   return (
-    <div className="container mx-auto p-4">
-      <h2 className="text-xl font-bold mb-4">מחשבון הקצאת תקציב שיווק - מותג מול פרפורמנס</h2>
+    <div className="container mx-auto p-4 max-w-4xl">
+      <h2 className="text-2xl font-bold mb-6 text-center">מחשבון הקצאת תקציב שיווק - מותג מול פרפורמנס</h2>
       
-      <div className="mb-6 bg-blue-50 p-4 rounded-lg shadow">
-        <p className="mb-2 font-semibold">מדריך 3 שלבים לתכנון תקציב השיווק שלך:</p>
-        <ol className="list-decimal list-inside text-sm">
+      <div className="mb-8 bg-blue-50 p-6 rounded-lg shadow">
+        <p className="mb-3 font-semibold text-lg">מדריך 3 שלבים לתכנון תקציב השיווק שלך:</p>
+        <ol className="list-decimal list-inside text-base">
           <li className={currentStep === 1 ? "font-bold text-blue-700" : ""}>חישוב תקציב השיווק השנתי המומלץ</li>
           <li className={currentStep === 2 ? "font-bold text-blue-700" : ""}>הגדרת פרמטרים עסקיים</li>
           <li className={currentStep === 3 ? "font-bold text-blue-700" : ""}>קבלת המלצת חלוקה בין מותג לפרפורמנס</li>
@@ -673,100 +595,111 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 1: חישוב תקציב שיווק שנתי */}
       {currentStep === 1 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">שלב 1: חישוב תקציב השיווק השנתי המומלץ</h3>
+        <div className="bg-white p-8 rounded-lg shadow">
+          <h3 className="text-xl font-bold mb-6">שלב 1: חישוב תקציב השיווק השנתי המומלץ</h3>
           
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">מחזור מכירות שנתי (₪):</label>
-            <input
-              type="text"
-              value={annualRevenue.toLocaleString()}
-              onChange={handleRevenueChange}
-              min="0"
-              className="p-2 border border-gray-300 rounded w-full"
-            />
-          </div>
-          
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">תחום העסק: <span className="text-red-500">*</span></label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className={`p-2 border ${!industry ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">-- בחר --</option>
-              {marketingPercentages.map(item => (
-                <option key={item.industry} value={item.industry}>
-                  {item.industry}
-                </option>
-              ))}
-            </select>
-            {!industry && <p className="text-red-500 text-sm mt-1">חובה לבחור תחום עסקי</p>}
-          </div>
-          
-          <div className="mb-6 bg-gray-50 p-4 rounded">
-            <div className="flex items-center mb-4">
-              <input
-                type="checkbox"
-                id="customBudget"
-                checked={customBudgetPercent}
-                onChange={(e) => setCustomBudgetPercent(e.target.checked)}
-                className="ml-2"
-              />
-              <label htmlFor="customBudget" className="font-semibold">הגדר אחוז תקציב שיווק מותאם אישית</label>
-            </div>
-            
-            {customBudgetPercent && (
-              <div className="mb-4">
-                <label className="block mb-2">אחוז מהמחזור: {customBudgetValue}%</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* טור ימני - שדות קלט */}
+            <div>
+              <div className="mb-8">
+                <label className="block mb-3 font-semibold text-lg">מחזור מכירות שנתי (₪):</label>
                 <input
-                  type="range"
-                  min="1"
-                  max="30"
-                  value={customBudgetValue}
-                  onChange={handleCustomBudgetChange}
-                  className="w-full"
+                  type="text"
+                  value={annualRevenue.toLocaleString()}
+                  onChange={handleRevenueChange}
+                  min="0"
+                  className="p-3 border border-gray-300 rounded w-full text-lg"
                 />
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>1%</span>
-                  <span>15%</span>
-                  <span>30%</span>
-                </div>
               </div>
-            )}
-            
-            <div className="mt-4">
-              <h4 className="font-bold mb-2">תקציב השיווק השנתי המומלץ:</h4>
-              <p className="text-2xl font-bold">{marketingBudget.toLocaleString()} ₪</p>
-              <p className="text-sm text-gray-600">
-                {customBudgetPercent 
-                  ? `${customBudgetValue}% ממחזור המכירות השנתי`
-                  : industry 
-                    ? `${getIndustryRecommendation().percentage}% ממחזור המכירות השנתי`
-                    : "בחר תחום עסקי כדי לקבל המלצה מדויקת יותר"}
-              </p>
               
-              {industry && !customBudgetPercent && (
-                <p className="mt-2 text-sm">{getIndustryRecommendation().note}</p>
-              )}
+              <div className="mb-8">
+                <label className="block mb-3 font-semibold text-lg">תחום העסק: <span className="text-red-500">*</span></label>
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className={`p-3 border ${!industry ? 'border-red-500' : 'border-gray-300'} rounded w-full text-lg`}
+                >
+                  <option value="">-- בחר --</option>
+                  {marketingPercentages.map(item => (
+                    <option key={item.industry} value={item.industry}>
+                      {item.industry}
+                    </option>
+                  ))}
+                </select>
+                {!industry && <p className="text-red-500 text-base mt-2">חובה לבחור תחום עסקי</p>}
+              </div>
+
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <input
+                    type="checkbox"
+                    id="customBudget"
+                    checked={customBudgetPercent}
+                    onChange={(e) => setCustomBudgetPercent(e.target.checked)}
+                    className="ml-3 w-5 h-5"
+                  />
+                  <label htmlFor="customBudget" className="font-semibold text-lg">הגדר אחוז תקציב שיווק מותאם אישית</label>
+                </div>
+                
+                {customBudgetPercent && (
+                  <div className="mb-6">
+                    <label className="block mb-3 text-lg">אחוז ממחזור המכירות השנתי: {customBudgetValue}%</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="30"
+                      value={customBudgetValue}
+                      onChange={handleCustomBudgetChange}
+                      className="w-full h-3"
+                    />
+                    <div className="flex justify-between text-base text-gray-600 mt-2">
+                      <span>1%</span>
+                      <span>15%</span>
+                      <span>30%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* טור שמאלי - תצוגת תקציב */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <div className="text-center">
+                <h4 className="font-bold text-xl mb-4">תקציב השיווק השנתי המומלץ:</h4>
+                <p className="text-4xl font-bold mb-4" style={{ color: '#2563eb' }}>
+                  {industry ? marketingBudget.toLocaleString() : '0'} ₪
+                </p>
+                <p className="text-lg text-gray-600 mb-4">
+                  {customBudgetPercent 
+                    ? `${customBudgetValue}% ממחזור המכירות השנתי`
+                    : industry 
+                      ? `${getIndustryRecommendation().percentage}% ממחזור המכירות השנתי`
+                      : "בחר תחום עסקי כדי לקבל המלצה"}
+                </p>
+                
+                {industry && !customBudgetPercent && (
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-base">{getIndustryRecommendation().note}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
-          <div className="mt-6 text-sm text-gray-600 border-t pt-4">
-            <p className="font-bold mb-2">מקורות:</p>
-            <ul className="list-disc list-inside">
+          <div className="mt-8 text-base text-gray-600 border-t pt-6">
+            <p className="font-bold mb-3">מקורות:</p>
+            <ul className="list-disc list-inside space-y-2">
               <li><a href="https://cmosurvey.org/results/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CMO Survey Results</a></li>
               <li><a href="https://www.gartner.com/en/marketing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Gartner Marketing Research</a></li>
               <li><a href="https://www2.deloitte.com/us/en/pages/chief-marketing-officer/articles/cmo-survey.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Deloitte CMO Survey</a></li>
             </ul>
-            <p className="mt-2">* ההמלצה מבוססת על מחקרים מתוך Effectiveness in Context ו-Media in Focus.</p>
-            <p>* התוצאה מחושבת כממוצע של ההמלצות עבור כל הפרמטרים שנבחרו.</p>
           </div>
           
-          <div className="flex justify-end mt-6">
+          <div className="flex justify-end mt-8">
             <button
               onClick={nextStep}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              disabled={!industry}
+              className={`px-8 py-3 text-white rounded text-lg font-semibold transition-colors ${industry ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}
             >
               המשך לשלב הבא
             </button>
@@ -776,109 +709,53 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 2: הגדרת פרמטרים עסקיים */}
       {currentStep === 2 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">שלב 2: הגדרת פרמטרים עסקיים</h3>
+        <div className="bg-white p-8 rounded-lg shadow">
+          <div className="bg-blue-50 p-6 rounded-lg mb-8">
+            <p className="text-lg">
+              עכשיו שאנחנו יודעים שאתם מכוונים ל-{annualRevenue.toLocaleString()} ₪,{' '}
+              העסק שלכם בתחום {industry} עם תקציב שיווק {marketingBudget.toLocaleString()} ₪,{' '}
+              בואו נבין כיצד לחלק את התקציב
+            </p>
+          </div>
+
+          <h3 className="text-xl font-bold mb-6">שלב 2: הגדרת פרמטרים עסקיים</h3>
           
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">שלב חיים של המותג: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["שלב חיים של המותג"] || ""} 
-              onChange={(e) => handleDimensionChange("שלב חיים של המותג", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["שלב חיים של המותג"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר שלב חיים של המותג</option>
-              {dimensionsMap["שלב חיים של המותג"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
+          <div className="space-y-6">
+            {Object.entries(dimensionsMap)
+              .filter(([dimension]) => dimension !== "גודל המותג" && dimension !== "מודל רכישה")
+              .map(([dimension, options]) => (
+                <div key={dimension} className="mb-6">
+                  <label className="block mb-3 font-semibold text-lg">{dimension}: <span className="text-red-500">*</span></label>
+                  <select 
+                    value={selectedValues[dimension] || ""} 
+                    onChange={(e) => handleDimensionChange(dimension, e.target.value)}
+                    className={`p-3 border ${errors.step2 && !selectedValues[dimension] ? 'border-red-500' : 'border-gray-300'} rounded w-full text-lg`}
+                  >
+                    <option value="">בחר {dimension}</option>
+                    {options.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
               ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">חדשנות: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["חדשנות"] || ""} 
-              onChange={(e) => handleDimensionChange("חדשנות", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["חדשנות"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר רמת חדשנות</option>
-              {dimensionsMap["חדשנות"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">שלב חיים של הקטגוריה: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["שלב חיים של הקטגוריה"] || ""} 
-              onChange={(e) => handleDimensionChange("שלב חיים של הקטגוריה", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["שלב חיים של הקטגוריה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר שלב חיים של הקטגוריה</option>
-              {dimensionsMap["שלב חיים של הקטגוריה"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">ערוץ מכירה: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["ערוץ מכירה"] || ""} 
-              onChange={(e) => handleDimensionChange("ערוץ מכירה", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["ערוץ מכירה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר ערוץ מכירה</option>
-              {dimensionsMap["ערוץ מכירה"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">תמחור: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["תמחור"] || ""} 
-              onChange={(e) => handleDimensionChange("תמחור", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["תמחור"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר תמחור</option>
-              {dimensionsMap["תמחור"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block mb-2 font-semibold">זמן קבלת החלטה: <span className="text-red-500">*</span></label>
-            <select 
-              value={selectedValues["זמן רכישה"] || ""} 
-              onChange={(e) => handleDimensionChange("זמן רכישה", e.target.value)}
-              className={`p-2 border ${errors.step2 && !selectedValues["זמן רכישה"] ? 'border-red-500' : 'border-gray-300'} rounded w-full`}
-            >
-              <option value="">בחר זמן קבלת החלטה</option>
-              {dimensionsMap["זמן רכישה"]?.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
           </div>
 
           {errors.step2 && (
-            <div className="text-red-500 text-sm mb-4">
+            <div className="text-red-500 text-base mb-6">
               {errors.step2}
             </div>
           )}
 
-          <div className="flex justify-between mt-6">
+          <div className="flex justify-between mt-8">
             <button
               onClick={() => setCurrentStep(1)}
-              className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              className="px-8 py-3 bg-gray-200 text-gray-700 rounded text-lg font-semibold hover:bg-gray-300"
             >
               חזור
             </button>
             <button
               onClick={nextStep}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              className="px-8 py-3 bg-blue-600 text-white rounded text-lg font-semibold hover:bg-blue-700"
             >
               המשך
             </button>
@@ -888,17 +765,23 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 3: המלצת חלוקה */}
       {currentStep === 3 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">המלצת חלוקת תקציב</h3>
+        <div className="bg-white p-8 rounded-lg shadow">
+          <h3 className="text-xl font-bold mb-6">המלצת חלוקת תקציב</h3>
           <BrandPerformanceResult 
             finalRecommendation={finalRecommendation}
-            explanation={recommendationExplanation}
+            selections={selectedValues}
             profile={businessProfile}
           />
+          
+          <div className="mt-8 text-base text-gray-600 border-t pt-6">
+            <p>* ההמלצה מבוססת על מחקרים מתוך Effectiveness in Context ו-Media in Focus.</p>
+            <p>* התוצאה מחושבת כממוצע של ההמלצות עבור כל הפרמטרים שנבחרו.</p>
+          </div>
+
           <div className="flex justify-center mt-8">
             <button
               onClick={resetCalculator}
-              className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+              className="px-8 py-3 bg-blue-600 text-white rounded-full text-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               התחל מהתחלה
             </button>

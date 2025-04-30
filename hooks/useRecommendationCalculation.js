@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { recommendationsData } from '../data/recommendationsData';
+import { calculateFinalRecommendation } from '../utils/calculateRecommendation';
 
 export const useRecommendationCalculation = (selectedValues, customAllocation, customAllocationValue) => {
   const [finalRecommendation, setFinalRecommendation] = useState({ brand: 60, performance: 40 });
@@ -12,27 +13,10 @@ export const useRecommendationCalculation = (selectedValues, customAllocation, c
       });
       return;
     }
-    
-    if (Object.keys(selectedValues).length === 0) {
-      setFinalRecommendation({ brand: 60, performance: 40 });
-      return;
-    }
-    
-    let totalBrand = 0;
-    let count = 0;
-    
-    for (const dimension in selectedValues) {
-      totalBrand += selectedValues[dimension].brand;
-      count++;
-    }
-    
-    const avgBrand = Math.round(totalBrand / count);
-    const avgPerf = 100 - avgBrand;
-    
-    setFinalRecommendation({
-      brand: avgBrand,
-      performance: avgPerf
-    });
+
+    // חישוב ההמלצה בעזרת calculateFinalRecommendation
+    const calculated = calculateFinalRecommendation(selectedValues);
+    setFinalRecommendation(calculated);
   }, [selectedValues, customAllocation, customAllocationValue]);
 
   return finalRecommendation;
