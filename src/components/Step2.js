@@ -32,6 +32,8 @@ const Step2 = ({ industry, selections, handleSelectionChange, annualRevenue, mar
   };
 
   const genericRecommendation = getGenericRecommendation();
+  // ערך בטוח ל-marketingBudget
+  const safeMarketingBudget = marketingBudget ?? 0;
 
   useEffect(() => {
     console.log("Step2 loaded with:", { industry, genericRecommendation });
@@ -54,7 +56,11 @@ const Step2 = ({ industry, selections, handleSelectionChange, annualRevenue, mar
             💡 מחזור המכירות שלך הוא: {annualRevenue.toLocaleString()} ₪
           </p>
           <p className="text-[#1E40AF]">
-            בהתאם למחזור הזה, תקציב השיווק שחישבנו עבורך הוא: {marketingBudget.toLocaleString()} ₪
+            בהתאם למחזור הזה, תקציב השיווק שחישבנו עבורך הוא: {
+              marketingBudget !== null 
+                ? `${safeMarketingBudget.toLocaleString()} ₪` 
+                : 'לא ניתן לחשב'
+            }
           </p>
         </div>
       )}

@@ -1,28 +1,32 @@
-import { useState, useEffect } from 'react';
-import { marketingPercentages } from '../data/marketingPercentages';
-import { areaMultipliers, audienceSizeMultipliers } from '../data/constants';
+import { useMemo } from 'react';
+import { calculateMarketingBudget } from '../utils/calculateMarketingBudget';
 
-export const useBudgetCalculation = (annualRevenue, industry, customBudgetPercent, customBudgetValue, operationArea, audienceSize) => {
-  const [marketingBudget, setMarketingBudget] = useState(100000);
+/**
+ * @typedef {Object} BudgetCalculationInputs
+ * @property {number} annualRevenue - מחזור מכירות שנתי
+ * @property {string} industry - תחום העסק
+ * @property {boolean} customBudgetPercent - האם להשתמש באחוז תקציב מותאם אישית
+ * @property {number} customBudgetValue - אחוז התקציב המותאם אישית
+ * @property {string} operationArea - אזור פעילות
+ * @property {string} audienceSize - גודל קהל פוטנציאלי
+ */
 
-  useEffect(() => {
-    if (!customBudgetPercent) {
-      const selectedIndustryInfo = marketingPercentages.find(item => item.industry === industry);
-      if (selectedIndustryInfo) {
-        const areaMultiplier = areaMultipliers[operationArea] || 1;
-        const audienceMultiplier = audienceSizeMultipliers[audienceSize] || 1;
-        const recommendedBudget = Math.round(annualRevenue * (selectedIndustryInfo.percentage / 100) * areaMultiplier * audienceMultiplier);
-        setMarketingBudget(recommendedBudget);
-      }
-    }
-  }, [industry, annualRevenue, customBudgetPercent, operationArea, audienceSize]);
-
-  useEffect(() => {
-    if (customBudgetPercent) {
-      const calculatedBudget = Math.round(annualRevenue * (customBudgetValue / 100));
-      setMarketingBudget(calculatedBudget);
-    }
-  }, [customBudgetValue, annualRevenue, customBudgetPercent]);
+/**
+ * חישוב תקציב שיווק מומלץ על בסיס פרמטרים שונים
+ * @param {BudgetCalculationInputs} props - הפרמטרים של הפונקציה
+ * @returns {number|null} - התקציב המחושב או null אם לא ניתן לחשב
+ */
+export const useBudgetCalculation = (inputs) => {
+  const marketingBudget = useMemo(() => {
+    return calculateMarketingBudget(inputs);
+  }, [
+    inputs.annualRevenue,
+    inputs.industry,
+    inputs.customBudgetPercent,
+    inputs.customBudgetValue,
+    inputs.operationArea,
+    inputs.audienceSize
+  ]);
 
   return marketingBudget;
 }; 

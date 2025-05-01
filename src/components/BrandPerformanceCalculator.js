@@ -4,6 +4,7 @@ import { buildExplanation } from '../utils/buildExplanation';
 import { getBusinessProfile } from '../utils/getBusinessProfile';
 import { calculateFinalRecommendation } from '../utils/calculateRecommendation';
 import BrandPerformanceResult from './BrandPerformanceResult';
+import Step1 from './Step1';
 
 const BrandPerformanceCalculator = () => {
   // מצב פנימי של הקומפוננטה - כל useState בראש!
@@ -13,6 +14,7 @@ const BrandPerformanceCalculator = () => {
   const [marketingBudget, setMarketingBudget] = useState(100000);
   const [customBudgetPercent, setCustomBudgetPercent] = useState(false);
   const [customBudgetValue, setCustomBudgetValue] = useState(10);
+  const [audienceSize, setAudienceSize] = useState("");
   const [selections, setSelections] = useState({});
   const [selectedValues, setSelectedValues] = useState({});
   const [finalRecommendation, setFinalRecommendation] = useState({ brand: 60, performance: 40 });
@@ -595,116 +597,21 @@ const BrandPerformanceCalculator = () => {
       
       {/* שלב 1: חישוב תקציב שיווק שנתי */}
       {currentStep === 1 && (
-        <div className="bg-white p-8 rounded-lg shadow">
-          <h3 className="text-xl font-bold mb-6">שלב 1: חישוב תקציב השיווק השנתי המומלץ</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* טור ימני - שדות קלט */}
-            <div>
-              <div className="mb-8">
-                <label className="block mb-3 font-semibold text-lg">מחזור מכירות שנתי (₪):</label>
-                <input
-                  type="text"
-                  value={annualRevenue.toLocaleString()}
-                  onChange={handleRevenueChange}
-                  min="0"
-                  className="p-3 border border-gray-300 rounded w-full text-lg"
-                />
-              </div>
-              
-              <div className="mb-8">
-                <label className="block mb-3 font-semibold text-lg">תחום העסק: <span className="text-red-500">*</span></label>
-                <select
-                  value={industry}
-                  onChange={(e) => setIndustry(e.target.value)}
-                  className={`p-3 border ${!industry ? 'border-red-500' : 'border-gray-300'} rounded w-full text-lg`}
-                >
-                  <option value="">-- בחר --</option>
-                  {marketingPercentages.map(item => (
-                    <option key={item.industry} value={item.industry}>
-                      {item.industry}
-                    </option>
-                  ))}
-                </select>
-                {!industry && <p className="text-red-500 text-base mt-2">חובה לבחור תחום עסקי</p>}
-              </div>
-
-              <div className="mb-8">
-                <div className="flex items-center mb-4">
-                  <input
-                    type="checkbox"
-                    id="customBudget"
-                    checked={customBudgetPercent}
-                    onChange={(e) => setCustomBudgetPercent(e.target.checked)}
-                    className="ml-3 w-5 h-5"
-                  />
-                  <label htmlFor="customBudget" className="font-semibold text-lg">הגדר אחוז תקציב שיווק מותאם אישית</label>
-                </div>
-                
-                {customBudgetPercent && (
-                  <div className="mb-6">
-                    <label className="block mb-3 text-lg">אחוז ממחזור המכירות השנתי: {customBudgetValue}%</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="30"
-                      value={customBudgetValue}
-                      onChange={handleCustomBudgetChange}
-                      className="w-full h-3"
-                    />
-                    <div className="flex justify-between text-base text-gray-600 mt-2">
-                      <span>1%</span>
-                      <span>15%</span>
-                      <span>30%</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* טור שמאלי - תצוגת תקציב */}
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <div className="text-center">
-                <h4 className="font-bold text-xl mb-4">תקציב השיווק השנתי המומלץ:</h4>
-                <p className="text-4xl font-bold mb-4" style={{ color: '#2563eb' }}>
-                  {industry ? marketingBudget.toLocaleString() : '0'} ₪
-                </p>
-                <p className="text-lg text-gray-600 mb-4">
-                  {customBudgetPercent 
-                    ? `${customBudgetValue}% ממחזור המכירות השנתי`
-                    : industry 
-                      ? `${getIndustryRecommendation().percentage}% ממחזור המכירות השנתי`
-                      : "בחר תחום עסקי כדי לקבל המלצה"}
-                </p>
-                
-                {industry && !customBudgetPercent && (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-base">{getIndustryRecommendation().note}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-8 text-base text-gray-600 border-t pt-6">
-            <p className="font-bold mb-3">מקורות:</p>
-            <ul className="list-disc list-inside space-y-2">
-              <li><a href="https://cmosurvey.org/results/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CMO Survey Results</a></li>
-              <li><a href="https://www.gartner.com/en/marketing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Gartner Marketing Research</a></li>
-              <li><a href="https://www2.deloitte.com/us/en/pages/chief-marketing-officer/articles/cmo-survey.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Deloitte CMO Survey</a></li>
-            </ul>
-          </div>
-          
-          <div className="flex justify-end mt-8">
-            <button
-              onClick={nextStep}
-              disabled={!industry}
-              className={`px-8 py-3 text-white rounded text-lg font-semibold transition-colors ${industry ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'}`}
-            >
-              המשך לשלב הבא
-            </button>
-          </div>
-        </div>
+        <Step1
+          industry={industry}
+          setIndustry={setIndustry}
+          annualRevenue={annualRevenue}
+          setAnnualRevenue={setAnnualRevenue}
+          audienceSize={audienceSize}
+          setAudienceSize={setAudienceSize}
+          customBudgetPercent={customBudgetPercent}
+          setCustomBudgetPercent={setCustomBudgetPercent}
+          customBudgetValue={customBudgetValue}
+          setCustomBudgetValue={setCustomBudgetValue}
+          onNext={() => nextStep()}
+          validate={validateStep1}
+          marketingBudget={marketingBudget}
+        />
       )}
       
       {/* שלב 2: הגדרת פרמטרים עסקיים */}
@@ -713,7 +620,7 @@ const BrandPerformanceCalculator = () => {
           <div className="bg-blue-50 p-6 rounded-lg mb-8">
             <p className="text-lg">
               עכשיו שאנחנו יודעים שאתם מכוונים ל-{annualRevenue.toLocaleString()} ₪,{' '}
-              העסק שלכם בתחום {industry} עם תקציב שיווק {marketingBudget.toLocaleString()} ₪,{' '}
+              העסק שלכם בתחום {industry} עם תקציב שיווק {marketingBudget !== null ? `${marketingBudget.toLocaleString()} ₪` : 'לא מחושב'},
               בואו נבין כיצד לחלק את התקציב
             </p>
           </div>

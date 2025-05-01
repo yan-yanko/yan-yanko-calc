@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bear-body { fill: #8B4513; }
+    .bear-face { fill: #D2691E; }
+    .bear-suit { fill: #2F4F4F; }
+    .bear-shirt { fill: #87CEEB; }
+    .bear-tie { fill: #4A4A4A; }
+    .calculator { fill: #8B4513; }
+    .calculator-screen { fill: #90EE90; }
+  </style>
+  
+  <!-- גוף הדוב -->
+  <circle class="bear-body" cx="100" cy="100" r="80"/>
+  
+  <!-- פנים -->
+  <circle class="bear-face" cx="100" cy="85" r="60"/>
+  
+  <!-- אוזניים -->
+  <circle class="bear-body" cx="50" cy="45" r="20"/>
+  <circle class="bear-body" cx="150" cy="45" r="20"/>
+  
+  <!-- חליפה -->
+  <path class="bear-suit" d="M60,100 Q100,160 140,100 L140,180 L60,180 Z"/>
+  
+  <!-- חולצה -->
+  <path class="bear-shirt" d="M80,110 L120,110 L120,150 L80,150 Z"/>
+  
+  <!-- עניבה -->
+  <path class="bear-tie" d="M95,110 L105,110 L110,130 L100,150 L90,130 Z"/>
+  
+  <!-- מחשבון -->
+  <rect class="calculator" x="70" y="160" width="60" height="30"/>
+  <rect class="calculator-screen" x="75" y="165" width="50" height="10"/>
+  
+  <!-- עיניים -->
+  <circle fill="black" cx="80" cy="75" r="5"/>
+  <circle fill="black" cx="120" cy="75" r="5"/>
+  
+  <!-- חיוך -->
+  <path d="M85,95 Q100,105 115,95" stroke="black" fill="none" stroke-width="2"/>
+</svg> 

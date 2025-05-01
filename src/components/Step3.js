@@ -23,6 +23,11 @@ const Step3 = ({
     { name: 'פרפורמנס', value: finalRecommendation.performance }
   ];
 
+  // הגדרת ערכים בטוחים במקרה של null
+  const safeMarketingBudget = marketingBudget ?? 0;
+  const safeBrandBudget = brandBudget ?? 0;
+  const safePerfBudget = perfBudget ?? 0;
+
   return (
     <div className="bg-white p-6 rounded-lg shadow">
       <h3 className="text-lg font-bold mb-4">שלב 3: המלצת חלוקה בין מותג לפרפורמנס</h3>
@@ -33,17 +38,32 @@ const Step3 = ({
           <BudgetPieChart data={getPieData()} />
           
           <div className="bg-gray-100 p-4 rounded-lg mb-4">
-            <h4 className="font-bold mb-2">תקציב שיווק שנתי: {marketingBudget.toLocaleString()} ₪</h4>
+            <h4 className="font-bold mb-2">
+              תקציב שיווק שנתי: {marketingBudget !== null 
+                ? `${safeMarketingBudget.toLocaleString()} ₪` 
+                : 'לא ניתן לחשב'
+              }
+            </h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="font-semibold text-purple-700">מותג:</p>
                 <p className="text-xl">{finalRecommendation.brand}%</p>
-                <p className="text-lg font-bold">{brandBudget.toLocaleString()} ₪</p>
+                <p className="text-lg font-bold">
+                  {brandBudget !== null 
+                    ? `${safeBrandBudget.toLocaleString()} ₪` 
+                    : 'לא ניתן לחשב'
+                  }
+                </p>
               </div>
               <div>
                 <p className="font-semibold text-green-700">פרפורמנס:</p>
                 <p className="text-xl">{finalRecommendation.performance}%</p>
-                <p className="text-lg font-bold">{perfBudget.toLocaleString()} ₪</p>
+                <p className="text-lg font-bold">
+                  {perfBudget !== null 
+                    ? `${safePerfBudget.toLocaleString()} ₪` 
+                    : 'לא ניתן לחשב'
+                  }
+                </p>
               </div>
             </div>
           </div>
