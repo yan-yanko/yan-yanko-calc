@@ -120,8 +120,9 @@ const Step1 = ({
         {/* טור ימני - שדות קלט */}
         <div>
           <div className="mb-6">
-            <label className="block mb-2 font-semibold">מחזור מכירות שנתי (₪):</label>
+            <label htmlFor="annualRevenueInput" className="block mb-2 font-semibold">מחזור מכירות שנתי (₪):</label>
             <input
+              id="annualRevenueInput"
               type="text"
               value={annualRevenue.toLocaleString()}
               onChange={handleRevenueChange}
@@ -131,8 +132,9 @@ const Step1 = ({
           </div>
           
           <div className="mb-6">
-            <label className="block mb-2 font-semibold">תחום העסק:</label>
+            <label htmlFor="industrySelect" className="block mb-2 font-semibold">תחום העסק:</label>
             <select
+              id="industrySelect"
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
               className="p-2 border border-gray-300 rounded w-full"
@@ -147,8 +149,9 @@ const Step1 = ({
           </div>
           
           <div className="mb-6">
-            <label className="block mb-2 font-semibold">מהו גודל קהל היעד של העסק שלך?</label>
+            <label htmlFor="audienceSizeSelect" className="block mb-2 font-semibold">מהו גודל קהל היעד של העסק שלך?</label>
             <select
+              id="audienceSizeSelect"
               value={audienceSize}
               onChange={(e) => setAudienceSize(e.target.value)}
               className="p-2 border border-gray-300 rounded w-full"

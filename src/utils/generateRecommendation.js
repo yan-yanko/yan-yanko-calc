@@ -42,15 +42,24 @@ const genericRecommendations = {
 
 let openai;
 try {
-  openai = new OpenAI({
-    apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true
-  });
+  // נוודא ש-process קיים (כלומר לא בדפדפן)
+  const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_OPENAI_API_KEY;
+  if (apiKey) {
+    openai = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true
+    });
+  }
 } catch (error) {
   console.error('Error initializing OpenAI:', error);
 }
 
 export const generatePersonalizedRecommendation = async (industry, baseRecommendation) => {
+  // אם אנחנו בסביבת בדיקות, נחזיר תמיד המלצה גנרית
+  if (process.env.NODE_ENV === 'test') {
+    return genericRecommendations[industry] || genericRecommendations["אחר"];
+  }
+
   // אם אין מפתח API או שיש שגיאה בהתחברות, נחזיר המלצה גנרית
   if (!openai || !process.env.REACT_APP_OPENAI_API_KEY) {
     console.log('Using generic recommendation due to missing OpenAI configuration');
